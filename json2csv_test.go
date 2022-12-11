@@ -9,18 +9,18 @@ import (
 
 func TestCsv_String(t *testing.T) {
 	type pointStruct struct {
-		PointItem string `json:"pointItem"`
+		PointItem string `json:"pointItem" title:"选项"`
 	}
 
 	type subStruct struct {
-		SubStructItem string `json:"subStructItem"`
+		SubStructItem string `json:"subStructItem" title:"子选项"`
 	}
 
 	type Person struct {
 		*pointStruct
-		SubStruct subStruct `json:"subStruct"`
-		Name string `json:"name"`
-		Age  int64  `json:"age"`
+		SubStruct subStruct `json:"subStruct" title:"子结构体"`
+		Name      string    `json:"name" title:"姓名"`
+		Age       int64     `json:"age" title:"年龄"`
 	}
 
 	person := Person{Name: "zhangsan", Age: 18}
@@ -35,7 +35,7 @@ func TestCsv_String(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Println(csv)
 
-	csv, err = json2csv.ToCsv([]Person{person,person})
+	csv, err = json2csv.ToCsv([]Person{person, person})
 	require.NoError(t, err)
 	fmt.Println(csv)
 }

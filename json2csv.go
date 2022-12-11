@@ -7,21 +7,28 @@ import (
 )
 
 type CsvList struct {
-	Title []string      `json:"title"`
-	Value [][]interface{} `json:"value"`
+	Title    []string        `json:"title"`
+	TitleTag []string        `json:"titleTag"`
+	Value    [][]interface{} `json:"value"`
 }
 
 type Csv struct {
-	Title []string      `json:"title"`
-	Value []interface{} `json:"value"`
+	Title    []string      `json:"title"`
+	TitleTag []string      `json:"titleTag"`
+	Value    []interface{} `json:"value"`
 }
 
 func (c *CsvList) String() string {
 	res := ""
 	name := ""
-	for _, v := range c.Title {
-		name = name + v + ","
+	for i := 0; i < len(c.Title); i++ {
+		if c.TitleTag[i] != "" {
+			name = name + c.TitleTag[i] + ","
+		} else {
+			name = name + c.Title[i] + ","
+		}
 	}
+
 	res = res + name + "\n"
 
 	for _, values := range c.Value {
@@ -36,6 +43,7 @@ func (c *CsvList) String() string {
 
 func (c *Csv) Append(csv *Csv) {
 	c.Title = append(c.Title, csv.Title...)
+	c.TitleTag = append(c.TitleTag, csv.TitleTag...)
 	c.Value = append(c.Value, csv.Value...)
 }
 
@@ -55,11 +63,12 @@ func ToCsv(object interface{}) (*CsvList, error) {
 	}
 
 	if rv.Kind() == reflect.Struct {
-		res, err := dumpStruct("", rv)
+		res, err := dumpStruct("", "", rv)
 		if err != nil {
 			return nil, err
 		}
 		csv.Title = res.Title
+		csv.TitleTag = res.TitleTag
 		csv.Value = append(csv.Value, res.Value)
 	}
 
@@ -72,11 +81,12 @@ func ToCsv(object interface{}) (*CsvList, error) {
 			}
 
 			if subrv.Kind() == reflect.Struct {
-				res, err := dumpStruct("", subrv)
+				res, err := dumpStruct("", "", subrv)
 				if err != nil {
 					return nil, err
 				}
 				csv.Title = res.Title
+				csv.TitleTag = res.TitleTag
 				csv.Value = append(csv.Value, res.Value)
 			}
 		}
@@ -114,7 +124,7 @@ func IsFieldKind(k reflect.Kind) bool {
 	return false
 }
 
-func dumpField(parentName, title string, rv reflect.Value) (*Csv, error) {
+func dumpField(parentName, name string, parentTitle string, title string, rv reflect.Value) (*Csv, error) {
 	var (
 		csv Csv
 	)
@@ -123,16 +133,22 @@ func dumpField(parentName, title string, rv reflect.Value) (*Csv, error) {
 	}
 
 	if parentName == "" {
-		csv.Title = append(csv.Title, title)
+		csv.Title = append(csv.Title, name)
 	} else {
-		csv.Title = append(csv.Title, parentName+"."+title)
+		csv.Title = append(csv.Title, parentName+"."+name)
+	}
+
+	if parentTitle == "" {
+		csv.TitleTag = append(csv.TitleTag, title)
+	} else {
+		csv.TitleTag = append(csv.TitleTag, parentTitle+"."+title)
 	}
 
 	csv.Value = append(csv.Value, rv.Interface())
 	return &csv, nil
 }
 
-func dumpStruct(parentName string, rv reflect.Value) (*Csv, error) {
+func dumpStruct(parentName string, parentTitle string, rv reflect.Value) (*Csv, error) {
 	var (
 		csv Csv
 	)
@@ -144,12 +160,13 @@ func dumpStruct(parentName string, rv reflect.Value) (*Csv, error) {
 	rt := rv.Type()
 	for i := 0; i < numField; i++ {
 		name := rt.Field(i).Name
+		title := rt.Field(i).Tag.Get("title")
 		frv := rv.Field(i)
 		if frv.Kind() == reflect.Ptr {
 			frv = frv.Elem()
 		}
 		if frv.Kind() == reflect.Struct {
-			res, err := dumpStruct(name, frv)
+			res, err := dumpStruct(name, title, frv)
 			if err != nil {
 				return nil, err
 			}
@@ -157,7 +174,7 @@ func dumpStruct(parentName string, rv reflect.Value) (*Csv, error) {
 		}
 
 		if IsFieldKind(frv.Kind()) {
-			res, err := dumpField(parentName, name, frv)
+			res, err := dumpField(parentName, name, parentTitle, title, frv)
 			if err != nil {
 				return nil, err
 			}
